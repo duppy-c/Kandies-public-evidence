@@ -1,8 +1,8 @@
-# Kandies Web Hardening and Release Key Management: October 28, 2026
+# Kandies Web Hardening and Release Signing: October 28, 2026
 
 **Time zone:** America/New_York (EDT)
 **Course context:** CYB/130T, applied practice on my own system
-**System:** Kandies (my own app) on Netlify; Windows PC; iPhone with iSH (Alpine Linux)
+**System:** Kandies (my own app) on Netlify; Windows PC; iPhone with iSH (Alpine Linux); GitHub Actions
 
 ---
 
@@ -11,22 +11,24 @@
 | Block | Start | End | Active |
 |---|---|---|---|
 | 1 | 12:38 | 13:25 | 47 m |
-| Break | 13:25 | 13:58 | |
+| Break (lunch) | 13:25 | 13:58 | |
 | 2 | 13:58 | 14:43 | 45 m |
+| 3 | 16:46 | 17:46 | 29 m |
+| Interruption (delivery) | 17:13 | 17:44 | |
 
-**Active:** 1 h 32 m. **Elapsed:** 2 h 05 m.
+**Active:** 2 h 01 m. **Elapsed:** 5 h 08 m.
 
 ## Goal
 
 1. Audit the live site's HTTP security headers and close any gaps.
-2. Create and protect the Android app-signing (upload) key for the Google Play release.
+2. Create, protect and use the Android app-signing (upload) key to produce a verified signed release.
 
 ## Setup
 
 - iPhone: iSH terminal (Alpine Linux) with curl, git, openssh-client
-- Windows PC: PowerShell, Chrome/Firefox, Git, GitHub CLI
+- Windows PC: PowerShell, Chrome/Firefox, Git, GitHub CLI, Java 21 keytool
 - Netlify hosting (headers set with a `_headers` file)
-- Java 21 (Temurin) keytool
+- GitHub Actions with encrypted secrets
 - USB drive for offline key backup
 
 ## Timeline
@@ -44,6 +46,10 @@
 | 14:09 | Upload key generated outside the repo |
 | 14:26 | Offline USB backup created and verified |
 | 14:33 | Key and password stored as encrypted GitHub secrets |
+| 16:50 | Manual-only release workflow committed and started |
+| 17:09 | Signed build succeeded |
+| 17:13 | Bundle signing fingerprint matched the upload key |
+| 17:44 | Signed bundle downloaded outside the repo |
 
 ## Problem Log
 
@@ -58,6 +64,7 @@
 | 7 | keytool not recognized | 13:58 | 14:05 | 7 m | Java not installed |
 | 8 | USB drive not found | 14:13 | 14:24 | 11 m | Drive not yet plugged in |
 | 9 | Secret upload returned HTTP 404 | 14:28 | 14:33 | 5 m | Stray backslash in repo name |
+| 10 | Deprecation warnings in build output | 17:09 | Open | — | Actions v4 use Node 20; runner image moving to Ubuntu 26. Not errors |
 
 ## Security Findings / Hardening Done
 
@@ -77,7 +84,14 @@
 - Offline backup on USB, verified by opening it and matching the fingerprint.
 - Password stored separately from the key file.
 - Key and password stored as **encrypted GitHub Actions secrets**; the key was piped directly from the file, and the password typed at a hidden prompt (never on the clipboard, in a command, or in history).
-- Release workflow (pending) restores the key only for the run and deletes it afterward.
+
+### Hardening 4: Release pipeline
+- Release workflow runs **only when started by hand** (not on every push).
+- Workflow has **read-only** repo permissions.
+- Key is restored to a temporary folder only for the run and **deleted afterward**, even if the build fails.
+- Passwords are masked (`***`) in build logs.
+- **Verified:** the signed bundle's SHA-256 certificate fingerprint matches the upload key's fingerprint (evidence 07).
+- Signed bundle kept outside the repo; GitHub deletes its copy after 7 days.
 - Google Play App Signing will hold the final app-signing key, so a lost upload key can be reset.
 
 ## Key Lessons / Technical Facts
@@ -86,6 +100,7 @@
 - X-Frame-Options DENY blocks all framing; CSP `frame-ancestors` is the modern equivalent.
 - Check `git status` before committing so test files never get published.
 - Treat signing keys like passwords: outside the repo, two backups, separate password, encrypted CI secrets.
+- A green build check isn't proof of the right signature; compare the certificate fingerprint.
 - A 404 from an API can mean a typo in the resource name, not a permissions problem.
 
 ## Future Assignment Ideas (own systems only)
@@ -93,19 +108,20 @@
 - Write and test a Content-Security-Policy for Kandies in report-only mode first.
 - Compare header grades before and after using a public header scanner on my own site.
 - Document a key-rotation plan using Play App Signing's upload key reset.
+- Pin GitHub Actions to newer versions and review workflow permissions (least privilege).
 
 ## Open Items
 
-- Commit and run the release workflow; confirm the signing fingerprint matches.
+- Bump GitHub action versions before Node 20 is retired.
 - Second offline backup of the upload key.
 - Content-Security-Policy.
 - Crop the masked token line from any gh auth status photo before publishing.
 
 ## Next Steps
 
+- Privacy policy page, store listing text and graphics, Data safety and content rating drafts.
 - LLC filed Friday; D-U-N-S number Mon/Tue.
 - Play Console organization account; upload the signed .aab.
-- Privacy policy, Data safety form, content rating.
 
 ## Sources
 
@@ -114,3 +130,4 @@
 - [OWASP: Clickjacking Defense Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html)
 - [Android Developers: Sign your app](https://developer.android.com/studio/publish/app-signing)
 - [GitHub Docs: Using secrets in GitHub Actions](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions)
+- [GitHub Changelog: Deprecation of Node 20 on GitHub Actions runners](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)
